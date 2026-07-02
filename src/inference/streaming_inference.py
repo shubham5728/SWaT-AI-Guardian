@@ -2,15 +2,15 @@ import os
 import sys
 import json
 import time
-import numpy as np
-import pandas as pd
-import joblib
+import numpy as np  # type: ignore
+import pandas as pd  # type: ignore
+import joblib  # type: ignore
 import logging
 from collections import deque
-import tensorflow as tf
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Input, Dense, Dropout
-from kafka import KafkaConsumer, KafkaProducer
+import tensorflow as tf  # type: ignore
+from tensorflow.keras.models import Model, load_model  # type: ignore
+from tensorflow.keras.layers import Input, Dense, Dropout  # type: ignore
+from kafka import KafkaConsumer, KafkaProducer  # type: ignore
 
 # Setup path for utils
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +18,7 @@ SRC_PATH = os.path.abspath(os.path.join(BASE_DIR, '..'))
 if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 
-from utils import get_kafka_config, setup_structured_logging, get_system_status
+from utils import get_kafka_config, setup_structured_logging, get_system_status  # type: ignore
 
 setup_structured_logging()
 logger = logging.getLogger("StreamingInference")
@@ -42,7 +42,7 @@ def build_autoencoder_scientific(input_dim, h_factor=0.5):
     Input -> Dense(tanh) -> Dropout(0.1) -> Bottleneck(tanh) -> Dense(tanh) -> Output(linear)
     """
     bottleneck = max(int(input_dim * h_factor), 2)
-    # MUST MATCH train_production.py EXACTLY
+    # MUST MATCH the training notebook (src/notebooks/SWaT_Anomaly_Detection.ipynb) EXACTLY
     input_layer = Input(shape=(input_dim,), name='ae_input')
     
     # Encoder
@@ -119,7 +119,7 @@ class AnomalyDetector:
         if init_kafka: self._init_kafka()
         
         self.alert_cooldown = 1.0 # seconds
-        self.last_alert_time = 0
+        self.last_alert_time = 0.0
 
     def preprocess(self, raw_dict):
         """Processes a single raw message into engineered features."""
@@ -152,8 +152,10 @@ class AnomalyDetector:
         try:
             # 1. Sandwich Preprocessing Pipeline
             # RobustScaler -> PCA -> StandardScaler
-            features_df = pd.DataFrame(features, columns=self.required_cols)
-            scaled = self.scaler.transform(features_df)
+            # `features` is already a numpy array in required_cols order (see
+            # preprocess); pass it as-is so RobustScaler — which was fitted
+            # without feature names — doesn't emit a UserWarning per record.
+            scaled = self.scaler.transform(features)
             
             # --- ATTRIBUTION LOGIC ---
             # Identify which raw sensors have the highest deviation from normal (0 in RobustScaler)
@@ -229,7 +231,11 @@ class AnomalyDetector:
         if not self.consumer: self._init_kafka()
         print(f"[*] Inference Engine Online (Patience=99.9%)")
         
-        for msg in self.consumer:
+        consumer = self.consumer
+        if consumer is None:
+            return
+            
+        for msg in consumer:
             if not get_system_status(): 
                 time.sleep(0.5)
                 continue
@@ -250,11 +256,12 @@ class AnomalyDetector:
                 "msg": f"Threshold V6: {res['mse']:.6f} > {res['threshold']}",
                 "severity": "CRITICAL" if res["is_iso"] else "WARNING"
             }
-            if self.producer:
-                self.producer.send(self.kafka_config.get_topic('alerts'), value=alert_msg)
-                self.producer.flush()
+            producer = self.producer
+            if producer is not None:
+                producer.send(self.kafka_config.get_topic('alerts'), value=alert_msg)
+                producer.flush()
             print(f"[!] Anomaly Detected: Score {res['mse']:.6f}")
-            self.last_alert_time = now
+            self.last_alert_time = float(now)
 
 if __name__ == "__main__":
     detector = AnomalyDetector(init_kafka=True)

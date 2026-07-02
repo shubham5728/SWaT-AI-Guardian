@@ -29,8 +29,8 @@ COPY data/ /app/data/
 # Create logs directory
 RUN mkdir -p /app/logs
 
-# Expose ports (FastAPI: 8000, Streamlit: 8501)
-EXPOSE 8000 8501
+# Expose port (FastAPI: 8000)
+EXPOSE 8000
 
 # Default command (can be overridden in docker-compose)
-CMD ["python", "src/api/fastapi_server.py"]
+CMD ["sh", "-c", "cd src && uvicorn api.ws_server:app --host 0.0.0.0 --port 8000"]

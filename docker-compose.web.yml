@@ -1,0 +1,37 @@
+# SWaT AI Guardian — NEW React dashboard stack (frontend + streaming backend).
+#
+# Self-contained: does NOT need Kafka. The backend replays data/*.csv through the
+# real AnomalyDetector and the nginx frontend reverse-proxies /api + /ws to it,
+# so the whole app lives behind ONE url.
+#
+#   docker compose -f docker-compose.web.yml up --build
+#   → open  http://localhost:8080
+#
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      DISABLE_KAFKA: "1"
+    # Email credentials injected at runtime (NOT baked into the image). Edit
+    # src/.env — no rebuild needed, just `up -d`. Missing file is tolerated.
+    env_file:
+      - ./src/.env
+    volumes:
+      # Models, data and config stay on the host (large / frequently retrained).
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+    font-feature-settings: "tnum";
+  }
+}
+
+@layer components {
+  /* Matte card — direct port of `.matte-card` from the Streamlit CSS. */
+  .matte-card {
+    @apply rounded-lg border border-border bg-surface p-4 shadow-card;
+  }
+
+  .metric-label {
+    @apply mb-1 text-[0.8rem] font-semibold uppercase tracking-wider text-text-muted;
+  }
+
+  .metric-value {
+    @apply text-[1.8rem] font-bold tabular-nums text-text-strong;
+  }
+
+  .badge {
+    @apply inline-block rounded px-2.5 py-1 text-[0.75rem] font-bold uppercase;
+  }
+  .badge-normal {
+    @apply border border-normal/20 bg-normal/10 text-normal;
+  }
+  .badge-warning {
+    @apply border border-warning/20 bg-warning/10 text-warning;
+  }
+  .badge-critical {
+    @apply border border-critical/20 bg-critical/10 text-critical;
+  }
+}
+
+/* Thin dark scrollbars to match the matte aesthetic. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}

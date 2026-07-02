@@ -73,12 +73,12 @@ services:
     networks:
       - swat-network
 
-  # 2. API Backend
+  # 2. API Backend (WebSocket streaming server — feeds the React dashboard)
   api:
     build: .
     container_name: swat-api
     restart: always
-    command: python src/api/fastapi_server.py
+    command: sh -c "cd src && uvicorn api.ws_server:app --host 0.0.0.0 --port 8000"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9093
     ports:
@@ -91,25 +91,7 @@ services:
     networks:
       - swat-network
 
-  # 3. Dashboard
-  dashboard:
-    build: .
-    container_name: swat-dashboard
-    restart: always
-    command: streamlit run src/dashboard/app_kafka_live.py
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9093
-    ports:
-      - "8501:8501"
-    volumes:
-      - .:/app
-    depends_on:
-      init-kafka:
-        condition: service_completed_successfully
-    networks:
-      - swat-network
-
-  # 4. Inference Engine
+  # 3. Inference Engine
   inference:
     build: .
     container_name: swat-inference
@@ -132,7 +114,7 @@ services:
     networks:
       - swat-network
 
-  # 5. Kafka Producer (Data Simulator)
+  # 4. Kafka Producer (Data Simulator)
   producer:
     build: .
     container_name: swat-producer
@@ -148,7 +130,7 @@ services:
     networks:
       - swat-network
 
-  # 6. Spark Consumer (Optional/Advanced)
+  # 5. Spark Consumer (Optional/Advanced)
   spark-worker:
     build: .
     container_name: swat-spark

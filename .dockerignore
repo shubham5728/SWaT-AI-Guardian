@@ -1,0 +1,14 @@
+.venv
+**/__pycache__
+**/*.pyc
+node_modules
+frontend/node_modules
+frontend/dist
+data
+models/*.h5
+logs
+.git
+*.bak
+# Never bake secrets into the image — injected at runtime via compose env_file.
+src/.env
+.env

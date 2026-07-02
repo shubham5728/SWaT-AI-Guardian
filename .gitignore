@@ -14,7 +14,13 @@ __pycache__/
 
 # Logs
 logs/
+src/logs/
 *.log
+
+# Backups / one-off scratch
+*.bak
+*~
+*.old
 
 # System State
 models/system_state.json
