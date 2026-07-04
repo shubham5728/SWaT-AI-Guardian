@@ -4,8 +4,12 @@
 node_modules
 frontend/node_modules
 frontend/dist
-data
-models/*.h5
+# Exclude the multi-hundred-MB datasets, but keep the small demo CSVs so the
+# single-container image (Dockerfile.hf) can bundle them.
+data/*
+!data/attack.csv
+!data/normal_sample.csv
+# models/*.h5 are tiny (~76KB) and required for real inference — keep them.
 logs
 .git
 *.bak

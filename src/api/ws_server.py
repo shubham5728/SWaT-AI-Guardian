@@ -654,7 +654,21 @@ async def stream(ws: WebSocket) -> None:
         await manager.disconnect(ws)
 
 
+# ---------------------------------------------------------------------------
+# Optional: serve the built React frontend from this same process (single
+# container / Hugging Face Spaces). Enabled only when STATIC_DIR points at a
+# built `dist`. Mounted LAST so /api/* and /ws/stream keep priority.
+# ---------------------------------------------------------------------------
+_STATIC_DIR = os.environ.get("STATIC_DIR")
+if _STATIC_DIR and os.path.isdir(_STATIC_DIR):
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")
+    logger.info(f"Serving static frontend from {_STATIC_DIR}")
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("api.ws_server:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("api.ws_server:app", host="0.0.0.0", port=port, reload=False)

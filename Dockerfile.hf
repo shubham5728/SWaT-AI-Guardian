@@ -1,0 +1,51 @@
+# SWaT AI Guardian — single-container image for Hugging Face Spaces.
+#
+# Builds the React dashboard, then serves it + the FastAPI REST/WebSocket API
+# from ONE process on port 7860 (HF Spaces' expected port). No Kafka, no nginx:
+# the backend replays the bundled CSVs through the real AnomalyDetector.
+#
+# Build/run locally to test:
+#   docker build -f Dockerfile.hf -t swat-hf .
+#   docker run -p 7860:7860 swat-hf   # → http://localhost:7860
+
+# ---- stage 1: build the Vite/React frontend (live WebSocket mode) ----
+FROM node:20-alpine AS frontend
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+COPY frontend/ ./
+ENV VITE_TRANSPORT=ws \
+    VITE_WS_URL=/ws/stream \
+    VITE_API_BASE=/api
+RUN npm run build
+
+# ---- stage 2: python backend that also serves the built frontend ----
+FROM python:3.10-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements-backend.txt .
+RUN pip install --no-cache-dir --timeout 1000 --retries 10 \
+    -r requirements-backend.txt
+
+# App code, models, config, and ONLY the small demo datasets (the multi-hundred-MB
+# files are excluded via .dockerignore; the backend falls back to normal_sample.csv).
+COPY src /app/src
+COPY config /app/config
+COPY models /app/models
+COPY data/attack.csv data/normal_sample.csv /app/data/
+
+# Built dashboard served by FastAPI (see STATIC_DIR handling in ws_server.py).
+COPY --from=frontend /fe/dist /app/frontend_dist
+
+ENV DISABLE_KAFKA=1 \
+    STATIC_DIR=/app/frontend_dist \
+    PORT=7860 \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 7860
+WORKDIR /app/src
+CMD ["sh", "-c", "uvicorn api.ws_server:app --host 0.0.0.0 --port ${PORT:-7860}"]
